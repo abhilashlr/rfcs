@@ -7,7 +7,7 @@
 
 ## Summary
 
-Introduce `--lang` flag as an option for `ember new` within Ember-CLI. This will set the `lang` attribute on the html element. A `lang` attribute defines the language of an element or a document.
+Introduce `--language` flag as an option for `ember new` and `ember init` within Ember-CLI. This will set the `lang` attribute on the `<html>` element at the application's entry point of `app/index.html`. The `lang` attribute defines the base human language of an element or a document.
 
 ## Motivation
 
