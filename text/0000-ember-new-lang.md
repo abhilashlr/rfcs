@@ -7,11 +7,15 @@
 
 ## Summary
 
-This RFC introduces the `--language` flag as an option for `ember new` and `ember init` within Ember-CLI. If used with a valid language code, the flag will set the `lang` attribute on the `<html>` element at the new application's `app/index.html` entry point. Assigned correctly, `lang` attribute defines the base human language of an element or a document in a way that can be programmatically understood by assistive technology.
+This RFC introduces the `--lang` flag as an option for `ember new` and `ember init` within Ember-CLI. If used with a valid language code, the flag will set the `lang` attribute on the `<html>` element at the new application's `app/index.html` entry point. Assigned correctly, `lang` attribute defines the base human language of an element or a document in a way that can be programmatically understood by assistive technology.
 
 ## Motivation
 
-The overall motivation for this RFC is Ember's commitment to ensuring that new applications 'accessible-by-default.' It offers a partial resolution to one of the issues documented in the framework's [longstanding list of Technical Accessibility Issues for New Ember Apps](https://github.com/emberjs/rfcs/issues/595) -- specifically, *“Missing default language declaration”* (Section 4). It has been developed within the Ember.js Accessibility Strike Team with the objective of helping to ensure that Ember applications achieve [WCAG Success Criterion 3.1.1: Language of Page](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html) from the moment they are created. For users of screen-reading assistive technogology, the impact of having a properly assigned `lang` attribute is immense:
+The overall motivation for this RFC is the belief that new ember apps should not immediately fail legal conformance requirements as they pertain to digital accessibility.
+
+The solution presented in this RFC offers the first stage of a resolution to one of the issues documented in the framework's [long-standing list of Technical Accessibility Issues for New Ember Apps](https://github.com/emberjs/rfcs/issues/595) -- specifically, *“Missing default language declaration”* (Section 4). 
+
+The  has been developed within the Ember.js Accessibility Strike Team with the objective of helping to ensure that Ember applications achieve [WCAG Success Criterion 3.1.1: Language of Page](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html) from the moment they are created. For users of screen-reading assistive technology, the impact of having a properly assigned `lang` attribute is important:
 
 > Both assistive technologies and conventional user agents can render text more accurately when the language of the Web page is identified. Screen readers can load the correct pronunciation rules. Visual browsers can display characters and scripts correctly. Media players can show captions correctly. **As a result, users with disabilities will be better able to understand the content.**
 > 
@@ -19,12 +23,11 @@ The overall motivation for this RFC is Ember's commitment to ensuring that new a
 
 Furthermore, having a page language specified should improve the user experience and technical improvements around these areas:
 
-* Screen readers, braille translation software and similar technologies
-* Captions with synchronized media (such as video subtitles)
-* Correct dictionary lookups for translations
-* Assisting search engines
-* Improving typography in certain situations
-* and more... [Source 1](https://www.w3.org/WAI/WCAG21/Techniques/html/H57) [Source 2](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html) [Source 3](https://www.w3.org/TR/1999/REC-html401-19991224/struct/dirlang.html#adef-lang)
+- Screen readers, braille translation software and similar technologies
+- Captions with synchronized media (such as video subtitles)
+- Correct dictionary lookups for translations
+- Assisting search engines
+- Improving typography in certain situations
 
 ## Detailed design
 
@@ -32,7 +35,7 @@ Link to [candidate implementation](https://github.com/josephdsumner/ember-cli/co
 
 ```bash
 ember new my-app --lang en-US
-# -lang or -l are valid aliases as well
+# -l are is a valid alias as well
 ```
 
 The above ember-cli command will result in the following `index.html` header change.
@@ -55,7 +58,7 @@ ember new <app-name> <options...>
 
 Language codes are verified against [is-language-code](https://www.npmjs.com/package/is-language-code). (see [examples of valid ISO country codes](https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes))
 
-If an invalid language code is given such as `--lang en-UK` the indended output should be a shell error that will hault the build.
+If an invalid language code is given such as `--lang en-UK` the intended output should be a shell error that will halt the build.
 
 ```bash
 ember new my-app --lang en-UK
@@ -99,3 +102,10 @@ Trying to set the app programming language to typescript? The `--lang flag sets 
   - See above under the Alternatives heading for arguments for "yes".
 * Should the attribute be `--language` instead of `--lang`?
   - We're going with "no" here in the RFC prose. Using `lang` more closely connects this flag with the HTML attribute `lang` and distances itself from the potential drawback, mentioned above, of a user thinking this specifies a programming language.
+* Can the default lang value simply be English? ([Valuable discussion points in this issue](https://cli.emberjs.com/release/basic-use/cli-commands/))
+
+## References
+
+* [Understanding Success Criterion 3.1.1: Language of Page](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html)
+* [Technique H57: Using the language attribute on the HTML element](https://www.w3.org/WAI/WCAG21/Techniques/html/H57)
+* [HTML5 Specification: `lang` attribute](https://html.spec.whatwg.org/#the-lang-and-xml:lang-attributes)
