@@ -1,4 +1,4 @@
-- Start Date: (fill me in with today's date, YYYY-MM-DD)
+**- Start Date: (fill me in with today's date, YYYY-MM-DD)
 - Relevant Team(s): (fill this in with the [team(s)](README.md#relevant-teams) to which this RFC applies)
 - RFC PR: (after opening the RFC PR, update this with a link to it and update the file name)
 - Tracking: (leave this empty)
@@ -13,21 +13,22 @@ This RFC introduces the `--lang` flag as an option for `ember new` and `ember in
 
 The overall motivation for this RFC is the belief that new ember apps should not immediately fail legal conformance requirements as they pertain to digital accessibility.
 
-The solution presented in this RFC offers the first stage of a resolution to one of the issues documented in the framework's [long-standing list of Technical Accessibility Issues for New Ember Apps](https://github.com/emberjs/rfcs/issues/595) -- specifically, *“Missing default language declaration”* (Section 4). 
+The solution presented in this RFC offers the first stage of a resolution to one of the issues documented in the framework's [long-standing list of Technical Accessibility Issues for New Ember Apps](https://github.com/emberjs/rfcs/issues/595) -- specifically, *“Missing default language declaration”* (Section 4).
 
-The  has been developed within the Ember.js Accessibility Strike Team with the objective of helping to ensure that Ember applications achieve [WCAG Success Criterion 3.1.1: Language of Page](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html) from the moment they are created. For users of screen-reading assistive technology, the impact of having a properly assigned `lang` attribute is important:
+This RFC document and its proposed approach have both been developed within the Ember.js Accessibility Strike Team with the explicit objective of helping to ensure that Ember applications achieve [WCAG Success Criterion 3.1.1: Language of Page](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html) from the moment they are created. The state of the `lang` attribute has a particularly high impact on the experience of users that require screen-reading assistive technology. When the attribute is properly assigned:
 
-> Both assistive technologies and conventional user agents can render text more accurately when the language of the Web page is identified. Screen readers can load the correct pronunciation rules. Visual browsers can display characters and scripts correctly. Media players can show captions correctly. **As a result, users with disabilities will be better able to understand the content.**
-> 
-> **-- <cite>[WCAG Success Criterion 3.1.1: Intent](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html#intent)</cite>**
+> "Both assistive technologies and conventional user agents can render text more accurately when the language of the Web page is identified. Screen readers can load the correct pronunciation rules. Visual browsers can display characters and scripts correctly. Media players can show captions correctly. **As a result, users with disabilities will be better able to understand the content.**"
+>
+> **Source: [WCAG Success Criterion 3.1.1: Intent](https://www.w3.org/WAI/WCAG21/Understanding/language-of-page.html#intent)**
 
-Furthermore, having a page language specified should improve the user experience and technical improvements around these areas:
+In this context, it is the users of screen readers, braille translation software, and similar assitive technologies for whom valid page language specifications provide the greatest improvements to user experience and technical operation. It is, however, extremely important to note that that although digital accessibility concerns are the primary motivators for developing formalized page language specifications, achieving WCAG SC-3.1.1 should certainly be considered a global application improvement. The following list contains application use cases that all benefit from having a valid page language specified, but are not strictly tied to digital accessibility requirements or assistive technology:
 
-- Screen readers, braille translation software and similar technologies
 - Captions with synchronized media (such as video subtitles)
 - Correct dictionary lookups for translations
 - Assisting search engines
 - Improving typography in certain situations
+
+Accordingly, while the primary motivation of this RFC is to address an unresolved digital accessibility issue in Ember, it is expected that a successful implementation of the proposed `--lang` flag solution will provide additional, non-accessibility-related improvements to the baseline quality of new Ember applications.
 
 ## Detailed design
 
