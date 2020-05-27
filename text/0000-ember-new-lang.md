@@ -27,11 +27,29 @@ Having a page language specified should improve the user experience and technica
 
 ## Detailed design
 
-Link to [candidate implementation](https://github.com/josephdsumner/ember-cli/compare/master...ember-new-lang-base).
+---
 
-```bash
+### Contents:
+
+- Candidate Implementation [WIP]
+- Usage
+- Summary of File Changes
+- Architecture
+
+---
+
+## Candidate Implementation [WIP]
+
+
+- [Current Feature Branch:](https://github.com/josephdsumner/ember-cli/compare/master...ember-new-lang-base)
+- [Diff vs. ]
+
+
+### Usage
+
+```shell
 ember new my-app --lang en-US
-# -lang or -l are valid aliases as well
+# -l is a valid alias as well
 ```
 
 The above ember-cli command will result in the following `index.html` header change.
@@ -42,13 +60,15 @@ The above ember-cli command will result in the following `index.html` header cha
 
 The flag is added to relevant ember-cli help commands, such as the following:
 
-```bash
+```shell
 ember help new
 ember new <app-name> <options...>
   ...
   --lang (String) (Default: "") Sets the base human language of the application via index.html
-    aliases: -l <value>, -lang <value>
+    aliases: -l <value>
 ```
+
+---
 
 ### Invalid Language Codes
 
@@ -61,6 +81,8 @@ ember new my-app --lang en-UK
 Unrecognised language subtag, "uk".
 ```
 
+---
+
 #### Common Misunderstandings
 
 A developer may encounter the flag and make incorrect assumptions about what it can mean. Such as, `-l typescript` or `-l glimmer`. Such incorrect assumptions will be manually caught by the implementation and the developer will be shown a friendly error message such as the following:
@@ -69,6 +91,44 @@ A developer may encounter the flag and make incorrect assumptions about what it 
 ember new my-app --lang typescript
 Trying to set the app programming language to typescript? The `--lang flag sets the base human language of the app in index.html
 ```
+
+---
+
+
+### Summary of File Changes
+
+```shell
+
+
+lib/utilities/valid-lang-flag.js (new)             |   112 +
+tests/unit/utilities/valid-lang-flag-test.js (new) |   106 +
+
+blueprints/addon/index.js                          |     7 +-
+blueprints/app/files/app/index.html                |     6 +-
+blueprints/app/index.js                            |     6 +
+
+lib/commands/init.js                               |    16 +
+lib/commands/new.js                                |    16 +
+lib/commands/addon.js                              |     7 +
+
+tests/acceptance/addon-dummy-generate-test.js      |    62 +
+
+tests/acceptance/init-test.js                      |    66 +
+tests/acceptance/new-test.js                       |    63 +
+
+tests/fixtures/help/help-with-addon.txt            |     6 +
+tests/fixtures/help/help.js                        |    24 +
+tests/fixtures/help/help.txt                       |     6 +
+tests/fixtures/help/with-addon-blueprints.js       |    24 +
+tests/fixtures/help/with-addon-commands.js         |    24 +
+
+tests/unit/commands/init-test.js                   |    80 +
+tests/unit/commands/new-test.js                    |    85 +
+
+```
+
+### Overview
+
 
 ## How we teach this
 
