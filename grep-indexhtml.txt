@@ -1,0 +1,10 @@
+accessibility\application-considerations.md:To indicate the primary language, use the `lang` attribute on the `<html>` element. Until Ember provides this by default, developers should edit the `index.html` file of the generated Ember application with the default language declaration. This is inherited by all other elements, and will set a default language for the text in the document head element.
+applications\run-loop.md:<iframe src="https://s3.amazonaws.com/emberjs.com/run-loop-guide/index.html" width="678" height="410" style="border:1px solid rgb(170, 170, 170);margin-bottom:1.5em;"></iframe>
+getting-started\quick-start.md:To make sure all routes are handled by `index.html`,
+getting-started\quick-start.md:FallbackResource index.html
+routing\defining-your-routes.md:- The top-level index route is analogous to `index.html`. For example, when someone visits `https://some-ember-app.com`, the contents of the `template/index.hbs` file will be rendered. There is no need to add an entry `this.route('index', { path: '/' });` in `app/router.js` file. The `index` route is implicitly included in order to help reduce verbose declarations in the `app/router.js`. The `app/router.js` file could be empty, and the `index` would still be shown:
+testing\index.md:Lastly, if you are already running a local development server (through `ember server`), you can visit the `/tests` URI. This will render the `tests/index.html` template.
+tutorial\part-1\orientation.md:  create app/index.html
+tutorial\part-1\orientation.md:  create tests/index.html
+tutorial\part-1\orientation.md:│   ├── index.html
+tutorial\part-1\orientation.md:│   ├── index.html

@@ -1,0 +1,1007 @@
+diff --git a/blueprints/addon/index.js b/blueprints/addon/index.js
+index 63a91809..5efd6eb8 100644
+--- a/blueprints/addon/index.js
++++ b/blueprints/addon/index.js
+@@ -132,7 +132,9 @@ module.exports = {
+     let addonName = stringUtil.dasherize(addonRawName);
+     let addonNamespace = stringUtil.classify(addonRawName);
+ 
+-    return {
++    let lang = options.lang;
++
++       return {
+       name,
+       modulePrefix: name,
+       namespace,
+@@ -143,6 +145,9 @@ module.exports = {
+       yarn: options.yarn,
+       welcome: options.welcome,
+       blueprint: 'addon',
++
++      lang
++
+     };
+   },
+ 
+diff --git a/blueprints/app/files/app/index.html b/blueprints/app/files/app/index.html
+index 788cee4c..7762eb70 100644
+--- a/blueprints/app/files/app/index.html
++++ b/blueprints/app/files/app/index.html
+@@ -1,5 +1,9 @@
+ <!DOCTYPE html>
+-<html>
++<% if(lang)  {
++  %><html lang="<%= lang %>"><%
++} else {
++  %><html><%
++} %>
+   <head>
+     <meta charset="utf-8">
+     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+diff --git a/blueprints/app/index.js b/blueprints/app/index.js
+index d8aaf331..9f6d780e 100644
+--- a/blueprints/app/index.js
++++ b/blueprints/app/index.js
+@@ -21,6 +21,10 @@ module.exports = {
+     let name = stringUtil.dasherize(rawName);
+     let namespace = stringUtil.classify(rawName);
+ 
++    let lang = options.lang;
++
++
++
+     return {
+       name,
+       modulePrefix: name,
+@@ -29,6 +33,8 @@ module.exports = {
+       yarn: options.yarn,
+       welcome: options.welcome,
+       blueprint: 'app',
++      
++      lang,
+     };
+   },
+ 
+diff --git a/lib/commands/addon.js b/lib/commands/addon.js
+index b1321e61..a417f3c9 100644
+--- a/lib/commands/addon.js
++++ b/lib/commands/addon.js
+@@ -15,6 +15,13 @@ module.exports = NewCommand.extend({
+     { name: 'skip-git', type: Boolean, default: false, aliases: ['sg'] },
+     { name: 'yarn', type: Boolean }, // no default means use yarn if the blueprint has a yarn.lock
+     { name: 'directory', type: String, aliases: ['dir'] },
++    {
++      name: 'lang',
++      type: String,
++      default: '',
++      description: 'Sets the base human language of the application via index.html',
++      aliases: ['l'],
++    },    
+   ],
+ 
+   anonymousOptions: ['<addon-name>'],
+diff --git a/lib/commands/init.js b/lib/commands/init.js
+index fe3fc294..8f678287 100644
+--- a/lib/commands/init.js
++++ b/lib/commands/init.js
+@@ -9,6 +9,7 @@ const isValidProjectName = require('../utilities/valid-project-name');
+ const normalizeBlueprint = require('../utilities/normalize-blueprint-option');
+ const mergeBlueprintOptions = require('../utilities/merge-blueprint-options');
+ const isYarnProject = require('../utilities/is-yarn-project');
++const getLangArgInfo = require('../../lib/utilities/valid-lang-flag');
+ 
+ module.exports = Command.extend({
+   name: 'init',
+@@ -29,6 +30,13 @@ module.exports = Command.extend({
+     },
+     { name: 'yarn', type: Boolean }, // no default means use yarn if the blueprint has a yarn.lock
+     { name: 'name', type: String, default: '', aliases: ['n'] },
++    {
++      name: 'lang',
++      type: String,
++      default: '',
++      description: 'Sets the base human language of the application via index.html',
++      aliases: ['l'],
++    },
+   ],
+ 
+   anonymousOptions: ['<glob-pattern>'],
+@@ -78,6 +86,14 @@ module.exports = Command.extend({
+       return Promise.reject(new SilentError(`We currently do not support a name of \`${packageName}\`.`));
+     }
+ 
++  // [WIP] ember new foo --lang
++  let langDef = this.availableOptions.find(opt => opt.name === 'lang').default;
++  let langInfo = getLangArgInfo(commandOptions.lang);
++  if(!langInfo.result && (langInfo.langArgValue !== langDef))  {
++    return Promise.reject(new SilentError(langInfo.message));
++  }
++  commandOptions.lang = langInfo.langArgValue;
++
+     await this.runTask('InstallBlueprint', blueprintOpts);
+ 
+     if (!commandOptions.skipNpm) {
+diff --git a/lib/commands/new.js b/lib/commands/new.js
+index df5cacbd..80798ae2 100644
+--- a/lib/commands/new.js
++++ b/lib/commands/new.js
+@@ -8,6 +8,7 @@ const SilentError = require('silent-error');
+ const isValidProjectName = require('../utilities/valid-project-name');
+ const normalizeBlueprint = require('../utilities/normalize-blueprint-option');
+ const mergeBlueprintOptions = require('../utilities/merge-blueprint-options');
++const getLangArgInfo = require('../../lib/utilities/valid-lang-flag');
+ 
+ module.exports = Command.extend({
+   name: 'new',
+@@ -29,6 +30,13 @@ module.exports = Command.extend({
+     },
+     { name: 'yarn', type: Boolean }, // no default means use yarn if the blueprint has a yarn.lock
+     { name: 'directory', type: String, aliases: ['dir'] },
++    {
++      name: 'lang',
++      type: String,
++      default: '',
++      description: 'Sets the base human language of the application via index.html',
++      aliases: ['l'],
++    },
+   ],
+ 
+   anonymousOptions: ['<app-name>'],
+@@ -63,6 +71,14 @@ module.exports = Command.extend({
+ 
+       return Promise.reject(new SilentError(message));
+     }
++    
++    // [WIP] ember new foo --lang
++    let langDef = this.availableOptions.find(opt => opt.name === 'lang').default;
++    let langInfo = getLangArgInfo(commandOptions.lang);
++    if( (langInfo.langArgValue !== langDef) && !langInfo.result )  {
++      return Promise.reject(new SilentError(langInfo.message));
++    }
++    commandOptions.lang = langInfo.langArgValue;
+ 
+     commandOptions.blueprint = normalizeBlueprint(commandOptions.blueprint);
+ 
+diff --git a/lib/utilities/valid-lang-flag.js b/lib/utilities/valid-lang-flag.js
+new file mode 100644
+index 00000000..9ce61777
+--- /dev/null
++++ b/lib/utilities/valid-lang-flag.js
+@@ -0,0 +1,112 @@
++/* 
++[WIP] 
++
++Processes the input provided for experimental --lang flag feature
++of ember-cli's `new` and `init` commands.
++
++*/
++
++'use strict';
++
++const getLangCodeInfo = require("is-language-code");
++
++const MSG_HEADER =
++`An error with the \`--lang\` flag returned the following message:`;
++
++const MSG_FOOTER =
++`Information about using the \`--lang\` flag:
++  The \`--lang\` flag sets the base human language of the app in index.html
++  If used, the lang option must specfify a valid language code.
++  For default behavior, remove the flag.
++  See \`ember <command> help\` for more information.`; 
++
++// Handles misuse case: trying to set app programming language
++const PROG_LANGS = [
++  'typescript',
++  'javascript',
++  'html',
++  'css',
++  'glimmer',
++  'emcas',
++  'es6',
++  'node',
++  'handlebars'
++];
++
++function isProgLang(langArg) {
++  return PROG_LANGS.includes(langArg.toLowerCase().trim());
++}
++
++function getProgLangMsg(langArg)  {
++  let message =
++  `Trying to set the app programming language to \`${langArg}?\`
++  This is not the intended usage of the \`--lang\` flag.`
++  return message;
++}
++
++// Handles misuse case: the lang flag is used without specification,
++// e.g. `ember new foo --lang --skip-npm`
++// Otherwise, the next option in the command gets parsed as the langArg.
++// It gets rejected as a valid language code, but the option doesn't get
++// executed as intended.
++function isCliOption(langArg) {
++  return langArg[0] === '-'
++}
++
++function getCliMsg(langArg) {
++  let message =
++  `Detected lang specification starting with command flag \`-\`.
++  Is \`${langArg}\` meant to be an ember-cli command option?
++  This issue is likely caused by using the \`--lang\` flag without a specification.`;
++  return message;
++}
++
++function isValidLangCode(langArg) {
++  return getLangCodeInfo(langArg).res;
++}
++
++function getLangCodeMsg(langArg)  {
++  return getLangCodeInfo(langArg).message;
++}
++
++
++function getMainMsg(langArg)  {
++  if (isProgLang(langArg))  {
++    return getProgLangMsg(langArg);
++  }
++  if (isCliOption(langArg)) {
++    return getCliMsg(langArg);
++  }
++  else {
++    return getLangCodeMsg(langArg);
++  }
++}
++
++function getWrappedMsg(langArg) {
++  let wrappedMsg;
++  if (getMainMsg(langArg)) {
++    wrappedMsg =
++    `${MSG_HEADER}
++  ${getMainMsg(langArg)}\n${MSG_FOOTER}`;
++  }
++  else {
++    wrappedMsg = getMainMsg(langArg);
++  }
++  return wrappedMsg;
++}
++
++function getResult(langArg) {
++  let result = isValidLangCode(langArg)
++    ? langArg
++    : isValidLangCode(langArg);
++  return result;
++  }
++
++module.exports = function getLangArgResult(langArg) {
++  return {
++    langArgValue: langArg,
++    isValidLangCode: isValidLangCode(langArg),
++    message: getWrappedMsg(langArg),
++    result: getResult(langArg)
++  };
++}
+diff --git a/tests/acceptance/addon-dummy-generate-test.js b/tests/acceptance/addon-dummy-generate-test.js
+index ce1d2a01..f3a2b344 100644
+--- a/tests/acceptance/addon-dummy-generate-test.js
++++ b/tests/acceptance/addon-dummy-generate-test.js
+@@ -240,4 +240,66 @@ describe('Acceptance: ember generate in-addon-dummy', function () {
+     await generateInAddon(['server', '--dummy']);
+     expect(file('server/index.js')).to.exist;
+   });
++
++  // [WIP] ember addon --lang flag
++  // -------------------------------
++  // Good: Default
++  it('ember addon without --lang flag (default) has no lang attribute in dummy index.html', async function () {
++    await ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--skip-git']);
++    expect(file('tests/dummy/app/index.html')).to.contain('<html>');
++  });
++
++  // Good: Correct Usage
++  it('ember addon with --lang flag and valid code assigns lang attribute in index.html', async function () {
++    await ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-US']);
++    expect(file('tests/dummy/app/index.html')).to.contain('<html lang="en-US">');
++  });
++
++  // Misuse: possibly an attempt to set app programming language
++  it('ember addon with --lang flag and programming language fails with an error message', async function () {
++    let err = await expect(ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=typescript'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.include('set the app programming language');
++    expect(err.message).to.include('typescript');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++  // Misuse: No specification + declared option
++  it('ember addon with --lang flag but no specification fails with an error message; absorbs ember-cli option (declared)', async function () {
++    let err = await expect(ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--lang', '--skip-git'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--skip-git');
++
++  });  
++
++  // Misuse: No specification + hidden option
++  it('ember addon with --lang flag but no specification fails with an error message; absorbs appended ember-cli option (hidden)', async function () {
++    let err = await expect(ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--disable-analytics');
++  });  
++  
++  // Misuse: Invalid Country Code
++  it('ember addon with --lang flag and invalid code fails with an error message', async function () {
++    let err = await expect(ember(['addon', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-UK'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
+ });
+diff --git a/tests/acceptance/init-test.js b/tests/acceptance/init-test.js
+index 497473f7..893c3077 100644
+--- a/tests/acceptance/init-test.js
++++ b/tests/acceptance/init-test.js
+@@ -166,4 +166,70 @@ describe('Acceptance: ember init', function () {
+ 
+     expect(dir('.git')).to.not.exist;
+   });
++
++  // [WIP] ember init --lang flag
++  // -------------------------------
++  // Good: Default
++  it('ember init without --lang flag (default) has no lang attribute in index.html', async function () {
++    await ember(['init', '--skip-npm', '--skip-bower', '--skip-git']);
++    confirmBlueprinted();
++    // expect(file('app/index.html')).to.contain('<html>');
++  });
++
++  // Good: Correct Usage
++  it('ember init with --lang flag and valid code assigns lang attribute in index.html', async function () {
++    await ember(['init', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-US']);
++    // expect(file('app/index.html')).to.contain('<html lang="en-US">');
++  });
++
++  // Misuse: possibly an attempt to set app programming language
++  it('ember init with --lang flag and programming language fails with an error message', async function () {
++    let err = await expect(ember(['init', '--skip-npm', '--skip-bower', '--skip-git', '--lang=typescript'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.include('set the app programming language');
++    expect(err.message).to.include('typescript');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++  // Misuse: No specification + declared option
++  it('ember init with --lang flag but no specification fails with an error message; absorbs ember-cli option (declared)', async function () {
++    let err = await expect(ember(['init', '--skip-npm', '--skip-bower', '--lang', '--skip-git'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--skip-git');
++
++  });  
++
++  // Misuse: No specification + hidden option
++  it('ember init with --lang flag but no specification fails with an error message; absorbs appended ember-cli option (hidden)', async function () {
++    let err = await expect(ember(['init', '--skip-npm', '--skip-bower', '--skip-git', '--lang'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--disable-analytics');
++  });  
++  
++  // Misuse: Invalid Country Code
++  it('ember init with --lang flag and invalid code fails with an error message', async function () {
++    let err = await expect(ember(['init', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-UK'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++
++
+ });
+diff --git a/tests/acceptance/new-test.js b/tests/acceptance/new-test.js
+index 84a629fc..8e85ae74 100644
+--- a/tests/acceptance/new-test.js
++++ b/tests/acceptance/new-test.js
+@@ -101,6 +101,69 @@ describe('Acceptance: ember new', function () {
+     expect(file('app/templates/application.hbs')).to.contain('Welcome to Ember');
+   });
+ 
++  // [WIP] ember new --lang flag
++  // -------------------------------
++  // Good: Default
++  it('ember new without --lang flag (default) has no lang attribute in index.html', async function () {
++    await ember(['new', 'foo', '--skip-npm', '--skip-bower', '--skip-git']);
++    expect(file('app/index.html')).to.contain('<html>');
++  });
++
++  // Good: Correct Usage
++  it('ember new with --lang flag and valid code assigns lang attribute in index.html', async function () {
++    await ember(['new', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-US']);
++    expect(file('app/index.html')).to.contain('<html lang="en-US">');
++  });
++
++  // Misuse: possibly an attempt to set app programming language
++  it('ember new with --lang flag and programming language fails with an error message', async function () {
++    let err = await expect(ember(['new', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=typescript'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.include('set the app programming language');
++    expect(err.message).to.include('typescript');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++  // Misuse: No specification + declared option
++  it('ember new with --lang flag but no specification fails with an error message; absorbs ember-cli option (declared)', async function () {
++    let err = await expect(ember(['new', 'foo', '--skip-npm', '--skip-bower', '--lang', '--skip-git'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--skip-git');
++
++  });  
++
++  // Misuse: No specification + hidden option
++  it('ember new with --lang flag but no specification fails with an error message; absorbs appended ember-cli option (hidden)', async function () {
++    let err = await expect(ember(['new', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--disable-analytics');
++  });  
++  
++  // Misuse: Invalid Country Code
++  it('ember new with --lang flag and invalid code fails with an error message', async function () {
++    let err = await expect(ember(['new', 'foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-UK'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++
+   it('ember new npm blueprint with old version', async function () {
+     await ember(['new', 'foo', '--blueprint', '@glimmer/blueprint@0.6.4', '--skip-npm', '--skip-bower']);
+ 
+diff --git a/tests/fixtures/help/help-with-addon.txt b/tests/fixtures/help/help-with-addon.txt
+index 58bbf11e..994a34bf 100644
+--- a/tests/fixtures/help/help-with-addon.txt
++++ b/tests/fixtures/help/help-with-addon.txt
+@@ -19,6 +19,8 @@ ember addon \u001b[33m<addon-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--directory\u001b[39m \u001b[36m(String)\u001b[39m
+     \u001b[90maliases: -dir <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember asset-sizes \u001b[36m<options...>\u001b[39m
+   Shows the sizes of your asset files.
+@@ -95,6 +97,8 @@ ember init \u001b[33m<glob-pattern>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--name\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m
+     \u001b[90maliases: -n <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember install \u001b[33m<addon-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   Installs an ember-cli addon from npm.
+@@ -125,6 +129,8 @@ ember new \u001b[33m<app-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--directory\u001b[39m \u001b[36m(String)\u001b[39m
+     \u001b[90maliases: -dir <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember serve \u001b[36m<options...>\u001b[39m
+   Builds and serves your app, rebuilding on file changes.
+diff --git a/tests/fixtures/help/help.js b/tests/fixtures/help/help.js
+index 1bc26daf..3fd77a32 100644
+--- a/tests/fixtures/help/help.js
++++ b/tests/fixtures/help/help.js
+@@ -69,6 +69,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<addon-name>']
+@@ -415,6 +423,14 @@ module.exports = {
+           aliases: ['n'],
+           key: 'name',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<glob-pattern>']
+@@ -520,6 +536,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<app-name>']
+diff --git a/tests/fixtures/help/help.txt b/tests/fixtures/help/help.txt
+index b352c03c..ff47271c 100644
+--- a/tests/fixtures/help/help.txt
++++ b/tests/fixtures/help/help.txt
+@@ -19,6 +19,8 @@ ember addon \u001b[33m<addon-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--directory\u001b[39m \u001b[36m(String)\u001b[39m
+     \u001b[90maliases: -dir <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember asset-sizes \u001b[36m<options...>\u001b[39m
+   Shows the sizes of your asset files.
+@@ -95,6 +97,8 @@ ember init \u001b[33m<glob-pattern>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--name\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m
+     \u001b[90maliases: -n <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember install \u001b[33m<addon-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   Installs an ember-cli addon from npm.
+@@ -125,6 +129,8 @@ ember new \u001b[33m<app-name>\u001b[39m \u001b[36m<options...>\u001b[39m
+   \u001b[36m--yarn\u001b[39m \u001b[36m(Boolean)\u001b[39m
+   \u001b[36m--directory\u001b[39m \u001b[36m(String)\u001b[39m
+     \u001b[90maliases: -dir <value>\u001b[39m
++  \u001b[36m--lang\u001b[39m \u001b[36m(String)\u001b[39m \u001b[36m(Default: "")\u001b[39m Sets the base human language of the application via index.html
++    \u001b[90maliases: -l <value>\u001b[39m
+ 
+ ember serve \u001b[36m<options...>\u001b[39m
+   Builds and serves your app, rebuilding on file changes.
+diff --git a/tests/fixtures/help/with-addon-blueprints.js b/tests/fixtures/help/with-addon-blueprints.js
+index af732522..368cce53 100644
+--- a/tests/fixtures/help/with-addon-blueprints.js
++++ b/tests/fixtures/help/with-addon-blueprints.js
+@@ -69,6 +69,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<addon-name>']
+@@ -447,6 +455,14 @@ module.exports = {
+           aliases: ['n'],
+           key: 'name',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<glob-pattern>']
+@@ -552,6 +568,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<app-name>']
+diff --git a/tests/fixtures/help/with-addon-commands.js b/tests/fixtures/help/with-addon-commands.js
+index 128c4e30..a6a18288 100644
+--- a/tests/fixtures/help/with-addon-commands.js
++++ b/tests/fixtures/help/with-addon-commands.js
+@@ -69,6 +69,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<addon-name>']
+@@ -415,6 +423,14 @@ module.exports = {
+           aliases: ['n'],
+           key: 'name',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<glob-pattern>']
+@@ -520,6 +536,14 @@ module.exports = {
+           aliases: ['dir'],
+           key: 'directory',
+           required: false
++        },
++        {
++          name: 'lang',
++          key: 'lang',
++          default: '',
++          description: 'Sets the base human language of the application via index.html',
++          aliases: ['l'],
++          required: false
+         }
+       ],
+       anonymousOptions: ['<app-name>']
+diff --git a/tests/unit/commands/init-test.js b/tests/unit/commands/init-test.js
+index 7b5cfeac..4ef3c0fb 100644
+--- a/tests/unit/commands/init-test.js
++++ b/tests/unit/commands/init-test.js
+@@ -227,4 +227,84 @@ describe('init command', function () {
+       expect(reason).to.equal('Called run');
+     });
+   });
++
++  // [WIP] ember init --lang flag
++  // -------------------------------
++  // Good: Default
++  it('ember init without --lang flag (default) has no error message before run; blueprint has lang key of empty String', async function () {
++    tasks.InstallBlueprint = Task.extend({
++      run(blueprintOpts) {
++        expect(blueprintOpts).to.contain.keys('lang');
++        expect(blueprintOpts.lang).to.equal('');
++        return Promise.reject('Called run');
++      },
++    });
++    buildCommand();
++    let result = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git'])).to.be.rejected;
++    expect(result).to.equal('Called run');
++  });
++  
++
++  // Good: Correct Usage
++  it('ember init with --lang flag and valid code has no error message before run; blueprint has lang key of input String', async function () {
++    tasks.InstallBlueprint = Task.extend({
++      run(blueprintOpts) {
++        expect(blueprintOpts).to.contain.keys('lang');
++        expect(blueprintOpts.lang).to.equal('en-US');
++        return Promise.reject('Called run');
++      },
++    });
++    buildCommand();
++    let result = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-US'])).to.be.rejected;
++    expect(result).to.equal('Called run');
++  });
++  
++
++  // Misuse: possibly an attempt to set app programming language
++  it('ember init with --lang flag and programming language fails with an error message', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=typescript'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.include('set the app programming language');
++    expect(err.message).to.include('typescript');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++  // Misuse: No specification + declared option
++  it('ember init with --lang flag but no specification fails with an error message; absorbs ember-cli option (declared)', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--lang', '--skip-git'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--skip-git');
++
++  });  
++
++  // // Misuse: No specification + hidden option
++  // it('ember init with --lang flag but no specification fails with an error message; absorbs appended ember-cli option (hidden)', async function () {
++  //   let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang'])).to.be.rejected;
++  //   expect(err.name).to.equal('SilentError');
++  //   expect(err.message).to.be.ok;
++  //   expect(err.message).to.not.include('set the app programming language');
++  //   expect(err.message).to.include('ember-cli command option');
++  //   expect(err.message).to.include('--disable-analytics');
++  // });  
++  
++  // Misuse: Invalid Country Code
++  it('ember init with --lang flag and invalid code fails with an error message', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-UK'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++
+ });
+diff --git a/tests/unit/commands/new-test.js b/tests/unit/commands/new-test.js
+index aa703248..29e96889 100644
+--- a/tests/unit/commands/new-test.js
++++ b/tests/unit/commands/new-test.js
+@@ -106,4 +106,89 @@ describe('new command', function () {
+     let reason = await command.validateAndRun(['foo', '--custom-option=customValue']);
+     expect(reason).to.equal('Called run');
+   });
++
++  // [WIP] ember new --lang flag
++  // -------------------------------
++  // Good: Default
++  it('ember new without --lang flag (default) has no error message before run; blueprint has lang key of empty String', async function () {
++    command.tasks.CreateAndStepIntoDirectory = Task.extend({
++      run() {
++        return Promise.resolve();
++      },
++    });
++    command.commands.Init = Command.extend({
++      run(commandOptions) {
++        expect(commandOptions).to.contain.keys('lang');
++        expect(commandOptions.lang).to.equal('');
++        return Promise.resolve('Called run');
++      },
++    });
++    let reason = await command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git']);
++    expect(reason).to.equal('Called run');
++  });
++
++  // Good: Correct Usage
++  it('ember new with --lang flag and valid code has no error message before run; blueprint has lang key of input String', async function () {
++    command.tasks.CreateAndStepIntoDirectory = Task.extend({
++      run() {
++        return Promise.resolve();
++      },
++    });
++    command.commands.Init = Command.extend({
++      run(commandOptions) {
++        expect(commandOptions).to.contain.keys('lang');
++        expect(commandOptions.lang).to.equal('en-US');
++        return Promise.resolve('Called run');
++      },
++    });
++    let reason = await command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-US']);
++    expect(reason).to.equal('Called run');
++  });
++
++  // Misuse: possibly an attempt to set app programming language
++  it('ember new with --lang flag and programming language fails with an error message', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=typescript'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.include('set the app programming language');
++    expect(err.message).to.include('typescript');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
++  // Misuse: No specification + declared option
++  it('ember new with --lang flag but no specification fails with an error message; absorbs ember-cli option (declared)', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--lang', '--skip-git'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.include('ember-cli command option');
++    expect(err.message).to.include('--skip-git');
++
++  });  
++
++  // // Misuse: No specification + hidden option
++  // it('ember new with --lang flag but no specification fails with an error message; absorbs appended ember-cli option (hidden)', async function () {
++  //   let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang'])).to.be.rejected;
++  //   expect(err.name).to.equal('SilentError');
++  //   expect(err.message).to.be.ok;
++  //   expect(err.message).to.not.include('set the app programming language');
++  //   expect(err.message).to.include('ember-cli command option');
++  //   expect(err.message).to.include('--disable-analytics');
++  // });  
++  
++  // Misuse: Invalid Country Code
++  it('ember new with --lang flag and invalid code fails with an error message', async function () {
++    let err = await expect(command.validateAndRun(['foo', '--skip-npm', '--skip-bower', '--skip-git', '--lang=en-UK'])).to.be.rejected;
++    expect(err.name).to.equal('SilentError');
++    expect(err.message).to.be.ok;
++    expect(err.message).to.include('An error with the \`--lang\` flag returned the following message:');
++    expect(err.message).to.include('Information about using the \`--lang\` flag:');
++    expect(err.message).to.not.include('set the app programming language');
++    expect(err.message).to.not.include('ember-cli command option');
++  });
++
+ });
+diff --git a/tests/unit/utilities/valid-lang-flag-test.js b/tests/unit/utilities/valid-lang-flag-test.js
+new file mode 100644
+index 00000000..1d9c2353
+--- /dev/null
++++ b/tests/unit/utilities/valid-lang-flag-test.js
+@@ -0,0 +1,106 @@
++'use-strict';
++
++const getLangArgResult = require('../../../lib/utilities/valid-lang-flag');
++const expect = require('chai').expect;
++
++describe('lib/utilities/valid-lang-flag', function () {
++
++  describe('Valid lang Flags', function () {
++    [
++      'en',
++      'en-gb',
++      'en-GB',
++      'EN',
++      'EN-gb',
++      'EN-GB',
++    ].forEach((langArg) => {
++      it(`'${langArg}' is a valid language code; message is null`, function () {
++        expect(getLangArgResult(langArg).isValidLangCode).to.be.ok;
++        expect(getLangArgResult(langArg).message).to.be.null;
++        expect(getLangArgResult(langArg).result).to.equal(langArg);
++      });
++    });
++  });
++
++  describe('Invalid lang Flags: Misc.', function ()  {
++    [
++      '',
++      '..-..',
++      '12-34',
++      ' en',
++      'en ',
++      'en-uk',
++      'en-UK',
++      'EN-uk',
++      'EN-UK',
++      'en-cockney',
++    ].forEach((langArg) => {
++      it(`'${langArg}' is an invalid language argument; not related misuse cases`, function () {
++        expect(getLangArgResult(langArg).isValidLangCode).to.not.be.ok;
++        expect(getLangArgResult(langArg).message).to.be.ok;
++        expect(getLangArgResult(langArg).message).to.include('An error with the \`--lang\` flag returned the following message:');
++        expect(getLangArgResult(langArg).message).to.include('Information about using the \`--lang\` flag:');
++        expect(getLangArgResult(langArg).message).to.not.include('set the app programming language');
++        expect(getLangArgResult(langArg).message).to.not.include('ember-cli command option');
++        expect(getLangArgResult(langArg).result).to.be.false;
++      });
++    });
++  });
++
++  describe('Invalid Language Flags, Misuse case: Programming Languages', function ()  {
++    [
++      'typescript',
++      'javascript',
++      'html',
++      'glimmer',
++      'emcas',
++      'es6',
++      'node',
++      'handlebars'
++    ].forEach((langArg) => {
++      it(`'${langArg}' is an invalid lang argument; possibly an attempt to set app programming language`, function () {
++        expect(getLangArgResult(langArg).isValidLangCode).to.not.be.ok;
++        expect(getLangArgResult(langArg).message).to.be.ok;
++        expect(getLangArgResult(langArg).message).to.include('An error with the \`--lang\` flag returned the following message:');
++        expect(getLangArgResult(langArg).message).to.include('Information about using the \`--lang\` flag:');
++        expect(getLangArgResult(langArg).message).to.include('set the app programming language');
++        expect(getLangArgResult(langArg).result).to.be.false;
++      });
++    });
++  });
++
++  describe('Invalid Language Flags, Misuse case: ember-cli `new` and `init` options / aliases', function ()  {
++    [
++      '--disable-analytics',
++      '--watcher=node',
++      '--dry-run',
++      '-d',
++      '--verbose',
++      '-v',
++      '--blueprint',
++      '-b',
++      '--skip-npm',
++      '-sn',
++      '--skip-bower',
++      '-sb',
++      '--welcome',
++      '--no-welcome',
++      '--yarn',
++      '--name',
++      '--skip-git',
++      '-sg',
++      '--directory',
++      '-dir'
++    ].forEach((langArg) => {
++      it(`'${langArg}' is an invalid language argument; possibly an absorbed ember-cli command option`, function () {
++        expect(getLangArgResult(langArg).isValidLangCode).to.not.be.ok;
++        expect(getLangArgResult(langArg).message).to.be.ok;
++        expect(getLangArgResult(langArg).message).to.include('An error with the \`--lang\` flag returned the following message:');
++        expect(getLangArgResult(langArg).message).to.include('Information about using the \`--lang\` flag:');
++        expect(getLangArgResult(langArg).message).to.include('ember-cli command option');
++        expect(getLangArgResult(langArg).result).to.be.false;
++      });
++    });
++  });
++
++});
+\ No newline at end of file
